@@ -880,6 +880,145 @@ html.modal-open{ overflow:hidden; }
 </style>
 </head>
 <body>
+<!-- ============ LOADING SCREEN: the device is drawn, then flies home ============ -->
+<style>
+  html.booting, html.booting body{ overflow:hidden !important; }
+  #boot{
+    position:fixed; inset:0; z-index:1000; display:grid; place-items:center;
+    background:var(--ground, #17140F);
+    transition:opacity .85s ease, visibility .85s ease;
+  }
+  #boot.away{ opacity:0; visibility:hidden; }
+  #boot::before{ content:""; position:absolute; inset:0; pointer-events:none;
+    background-image:radial-gradient(var(--grid-dot, rgba(245,239,227,.13)) 1px, transparent 1px);
+    background-size:40px 40px; opacity:.7; }
+  #boot::after{ content:""; position:absolute; top:50%; left:50%; width:520px; height:520px;
+    transform:translate(-50%,-50%); border-radius:50%; pointer-events:none;
+    background:radial-gradient(circle, var(--glow, rgba(224,96,58,.55)), transparent 66%);
+    filter:blur(24px); opacity:.42; animation:bootPulse 4.2s ease-in-out infinite; }
+  @keyframes bootPulse{ 50%{ transform:translate(-50%,-50%) scale(1.16); opacity:.62; } }
+  .boot-inner{ position:relative; display:flex; flex-direction:column; align-items:center; gap:22px; }
+
+  .boot-phone{ position:relative; width:170px; height:340px;
+    transition:transform 1s cubic-bezier(.16,.84,.44,1), opacity .8s ease .15s; }
+  .boot-phone .bp-fill{ position:absolute; inset:0; border-radius:28px; opacity:0;
+    background:linear-gradient(145deg, var(--ground-3, #262118), var(--ground-2, #1E1A14));
+    box-shadow:0 35px 70px -30px rgba(0,0,0,.8), inset 0 1px 0 rgba(255,255,255,.06);
+    animation:bootFade .7s 1.35s ease forwards; }
+  .boot-phone .bp-inner{ position:absolute; inset:9px; border-radius:22px; opacity:0;
+    border:1px dashed var(--rule, rgba(245,239,227,.13)); animation:bootFade .6s 1.6s ease forwards; }
+  .boot-phone svg{ position:absolute; inset:0; width:100%; height:100%; overflow:visible; }
+  .boot-phone svg rect{ fill:none; stroke:var(--kumkum, #E0603A); stroke-width:2.4;
+    filter:drop-shadow(0 0 8px var(--glow, rgba(224,96,58,.55)));
+    stroke-dasharray:990; stroke-dashoffset:990;
+    animation:bootDraw 1.45s cubic-bezier(.16,.84,.44,1) forwards; }
+  @keyframes bootDraw{ to{ stroke-dashoffset:0; } }
+  .boot-phone .bp-punch{ position:absolute; top:13px; left:50%; transform:translateX(-50%);
+    width:11px; height:11px; border-radius:50%; background:#0a0908; opacity:0;
+    box-shadow:0 0 0 1.5px rgba(245,239,227,.14); animation:bootFade .5s 1.7s ease forwards; }
+  .boot-phone .bp-punch::after{ content:""; position:absolute; inset:3px; border-radius:50%;
+    background:radial-gradient(circle at 35% 35%, #33507d, #0b1220); }
+  .boot-phone .bp-home{ position:absolute; left:50%; bottom:10px; transform:translateX(-50%);
+    width:46px; height:4px; border-radius:4px; background:var(--rule-2, rgba(245,239,227,.28));
+    opacity:0; animation:bootFade .5s 1.8s ease forwards; }
+  .boot-phone .bp-cards{ position:absolute; inset:26px 16px auto 16px; display:grid; gap:9px; }
+  .boot-phone .bp-cards i{ display:block; height:26px; border-radius:9px; opacity:0;
+    background:linear-gradient(120deg, rgba(224,96,58,.35), rgba(227,169,58,.18));
+    animation:bootCard .5s ease forwards; }
+  .boot-phone .bp-cards i:nth-child(1){ animation-delay:1.95s; }
+  .boot-phone .bp-cards i:nth-child(2){ animation-delay:2.1s; width:78%; }
+  .boot-phone .bp-cards i:nth-child(3){ animation-delay:2.25s; width:88%; }
+  @keyframes bootCard{ from{ opacity:0; transform:translateY(8px); } to{ opacity:1; transform:none; } }
+  @keyframes bootFade{ to{ opacity:1; } }
+
+  .boot-name{ font-family:'Bricolage Grotesque', system-ui, sans-serif; font-weight:700; font-size:19px;
+    letter-spacing:-.02em; color:var(--flour, #F5EFE3); opacity:0; animation:bootFade .6s 1.5s ease forwards; }
+  .boot-name b{ color:var(--kumkum, #E0603A); }
+  .boot-bar{ position:relative; width:180px; height:6px; border-radius:999px; overflow:hidden;
+    background:var(--glass, rgba(38,33,24,.52)); border:1px solid var(--glass-brd, rgba(245,239,227,.13));
+    opacity:0; animation:bootFade .5s 1.5s ease forwards; }
+  .boot-bar i{ position:absolute; inset:0; width:0; border-radius:999px;
+    background:linear-gradient(90deg, var(--turmeric, #E3A93A), var(--kumkum, #E0603A));
+    box-shadow:0 0 16px 2px var(--glow, rgba(224,96,58,.55));
+    animation:bootBar 2.4s .25s cubic-bezier(.4,0,.2,1) forwards; }
+  @keyframes bootBar{ to{ width:100%; } }
+  .boot-hint{ font-family:'Martian Mono', ui-monospace, monospace; font-size:9px; letter-spacing:.22em;
+    text-transform:uppercase; color:var(--flour-3, #8C8474); opacity:0;
+    animation:bootFade .6s 1.7s ease forwards; }
+  @media (prefers-reduced-motion: reduce){
+    .boot-phone svg rect{ animation:none; stroke-dashoffset:0; }
+    .boot-phone .bp-fill, .boot-phone .bp-inner, .boot-phone .bp-punch, .boot-phone .bp-home,
+    .boot-name, .boot-bar, .boot-hint, .boot-phone .bp-cards i{ animation:none; opacity:1; }
+    .boot-bar i{ width:100%; }
+  }
+  @media (max-width:520px){ .boot-phone{ width:140px; height:280px; } }
+</style>
+
+<div id="boot" role="status" aria-live="polite" aria-label="Loading portfolio">
+  <div class="boot-inner">
+    <div class="boot-phone" id="bootPhone">
+      <span class="bp-fill"></span>
+      <span class="bp-inner"></span>
+      <svg viewBox="0 0 170 340" aria-hidden="true"><rect x="2" y="2" width="166" height="336" rx="28"/></svg>
+      <span class="bp-punch"></span>
+      <span class="bp-cards"><i></i><i></i><i></i></span>
+      <span class="bp-home"></span>
+    </div>
+    <div class="boot-name">Manivasagan <b>T</b></div>
+    <div class="boot-bar"><i></i></div>
+    <div class="boot-hint">Loading portfolio</div>
+  </div>
+</div>
+
+<script>
+/* Draws a phone, then flies it into the hero showcase slot and pins it there. */
+(function(){
+  'use strict';
+  var boot  = document.getElementById('boot');
+  var phone = document.getElementById('bootPhone');
+  if (!boot) return;
+  var root  = document.documentElement;
+  root.classList.add('booting');
+  var done  = false;
+
+  function launch(){
+    if (done) return;
+    done = true;
+    var target = document.getElementById('dstage');
+    if (target && phone){
+      var r = target.getBoundingClientRect();
+      var p = phone.getBoundingClientRect();
+      if (r.width && p.width){
+        var dx = (r.left + r.width / 2)  - (p.left + p.width / 2);
+        var dy = (r.top  + r.height / 2) - (p.top  + p.height / 2);
+        var s  = Math.max(Math.min((r.height * 0.74) / p.height, 1.1), 0.3);
+        phone.style.transform = 'translate(' + dx + 'px,' + dy + 'px) scale(' + s + ')';
+        phone.style.opacity = '0';
+      }
+    }
+    setTimeout(function(){ boot.classList.add('away'); }, 260);
+    setTimeout(function(){
+      boot.style.display = 'none';
+      root.classList.remove('booting');
+      window.dispatchEvent(new Event('resize'));
+      window.dispatchEvent(new CustomEvent('portfolio:booted'));
+    }, 1400);
+  }
+
+  /* wait for the page (and, in the Angular build, the rendered component),
+     but always let the drawing animation finish first */
+  var MIN_SHOW = 2900, t0 = Date.now(), waited = 0;
+  function ready(){ setTimeout(launch, Math.max(0, MIN_SHOW - (Date.now() - t0))); }
+  (function poll(){
+    if (document.getElementById('dstage') || waited > 8000){ ready(); return; }
+    waited += 120;
+    setTimeout(poll, 120);
+  })();
+  setTimeout(launch, 9500);
+  boot.addEventListener('click', launch);
+})();
+</script>
+
 
 <a class="skip" href="#st0">Skip to content</a>
 
